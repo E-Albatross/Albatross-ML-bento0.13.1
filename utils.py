@@ -9,7 +9,6 @@ trans = transforms.Compose([
   transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]) # imagenet
 ])
 
-
 JA, MO, BA = 0, 1, 2 # 자음
 BBOX_X, BBOX_Y, BBOX_W, BBOX_H = 0, 1, 2, 3
 
@@ -34,15 +33,15 @@ def imgproc(img,mean=(0.485, 0.456, 0.406), variance=(0.229, 0.224, 0.225)):
     img /= np.array([variance[0] * 255.0, variance[1] * 255.0, variance[2] * 255.0], dtype=np.float32)
     return img
 
-
-
 def getContourBoxes(image, X):
     img_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     ret, thres = cv2.threshold(img_gray, 170, 255, cv2.THRESH_BINARY_INV)
     contours, hr = cv2.findContours(thres, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     x_arr = []
     y_arr = []
-
+    if not contours:
+        print('no ctr')
+        return []
     for ctr in contours:
         x, y, w, h = cv2.boundingRect(ctr)
         x_arr.append(x)
@@ -62,12 +61,19 @@ def getContourBoxes(image, X):
 def crop_img(image, size, width, height, x,y=0):
     img = image[y:y+height, x:x + width].copy()
     box = getContourBoxes(img, x)
+    if not box:
+        return img, box
+    x_, y_, w_, h_, c_ = box
+    if w_>224: w_=224
+
     crop = np.ones((size, size, 3), dtype=np.uint8) * 255
-    crop[0:height, 0:width] = img
+    crop[0:h_, 0:w_] = image[y_:y_+h_, x_:x_+w_].copy()
     crop = cv2.resize(crop, (224, 224))
+    # cv2.imshow('img', crop)
+    # cv2.waitKey(0)
 
     return crop, box
-#
+
 # def check_bbox(bbox):
 #     print('\ncheck bbox')
 #     bbox = np.array(bbox, dtype=np.int32)
@@ -100,12 +106,6 @@ def crop_img(image, size, width, height, x,y=0):
 #             new_bbox.append(bbox[i])
 #
 #     return new_bbox
-
-
-
-
-
-##
 
 def getDetBoxes(textmap, text_threshold=0.7, low_text=0.4):
     # prepare data
@@ -345,9 +345,9 @@ def getDetBoxes_from_seg(image, y, char_threshold=0.5):
                 character['label'] = new_label
                 character['box'] = new_box
     # err - 자음 혹은 모음 없음
-    if characters[0]['label'] == [-1] or characters[1]['label'] == [-1]:
-        # print('detect err')
-        return np.array([[-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1]])
+    # if characters[0]['label'] == [-1] or characters[1]['label'] == [-1]:
+    #     # print('detect err')
+    #     return np.array([[-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1]])
         # return [[{'label': -1, 'box':[-1,-1,-1,-1]}],[{'label': -1, 'box':[-1,-1,-1,-1]}],[{'label': -1, 'box':[-1,-1,-1,-1]}]]
 
     # print('\n')
