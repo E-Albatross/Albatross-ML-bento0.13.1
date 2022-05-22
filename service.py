@@ -124,8 +124,8 @@ class HangeulDetector(bentoml.BentoService):
                 for i, box in enumerate(bbox):
                     x, y, w, h = box
                     cv2.rectangle(seg_result, (x, y), (x + w, y + h), colors[i], 4)  # bbox 확인용
-                cv2.imwrite(os.path.join('./bbox',f'seg{str(num)}.png'),seg_result)
-                cv2.imwrite(os.path.join('./bbox',f'crop{str(num)}.png'),img_)
+                # cv2.imwrite(os.path.join('./bbox',f'seg{str(num)}.png'),seg_result)
+                # cv2.imwrite(os.path.join('./bbox',f'crop{str(num)}.png'),img_)
 
                 num += 1
             # print(f'segmentation done')
