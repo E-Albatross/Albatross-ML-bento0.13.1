@@ -226,15 +226,15 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    cuda = args.cuda and torch.cuda.is_available()
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     craft = CraftMain()
     seg = SegmentationMain()
     # fpn = FPNMain()
 
     # load model
-    craft_model = craft.load_model(args.craft_model, cuda)
-    segmentation_model = seg.load_model(args.seg_model, cuda)
+    craft_model = craft.load_model(args.craft_model, device)
+    segmentation_model = seg.load_model(args.seg_model, device)
     # fpn_model = fpn.load_model(args.fpn_model, cuda)
 
     detector_service = HangeulDetector()

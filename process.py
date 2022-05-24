@@ -13,12 +13,12 @@ class CraftMain():
     def __init__(self):
         self.model = CRAFT(pretrained=True) # initialize
 
-    def load_model(self, checkpoint, cuda=False):
-        if cuda:
-            print('craft model loaded with cuda')
-            self.model.load_state_dict(self.copyStateDict(torch.load(checkpoint)))
-        else:
+    def load_model(self, checkpoint, device='cpu'):
+        self.model = self.model.to(device)
+        if device == 'cpu':
             self.model.load_state_dict(self.copyStateDict(torch.load(checkpoint, map_location='cpu')))
+        else:
+            self.model.load_state_dict(self.copyStateDict(torch.load(checkpoint)))
 
         return self.model
 
@@ -61,12 +61,13 @@ class SegmentationMain():
     def __init__(self):
         self.model = smp.FPN(encoder_name="resnext50_32x4d", classes=3)
 
-    def load_model(self, checkpoint, cuda=False):
-        if cuda:
-            print('segmentation model loaded with cuda')
-            state = torch.load(checkpoint)
-        else:
+    def load_model(self, checkpoint, device='cpu'):
+        self.model = self.model.to(device)
+        if device=='cpu':
             state = torch.load(checkpoint, map_location=torch.device('cpu'))
+        else:
+            state = torch.load(checkpoint)
+
         self.model.load_state_dict(state['model_state_dict'])
 
         return self.model
