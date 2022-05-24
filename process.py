@@ -15,6 +15,7 @@ class CraftMain():
 
     def load_model(self, checkpoint, cuda=False):
         if cuda:
+            print('craft model loaded with cuda')
             self.model.load_state_dict(self.copyStateDict(torch.load(checkpoint)))
         else:
             self.model.load_state_dict(self.copyStateDict(torch.load(checkpoint, map_location='cpu')))
@@ -62,6 +63,7 @@ class SegmentationMain():
 
     def load_model(self, checkpoint, cuda=False):
         if cuda:
+            print('segmentation model loaded with cuda')
             state = torch.load(checkpoint)
         else:
             state = torch.load(checkpoint, map_location=torch.device('cpu'))
