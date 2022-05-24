@@ -143,96 +143,20 @@ class HangeulDetector(bentoml.BentoService):
         file['character'] = character_boxes
 
         return file
-    #
-    # @bentoml.api(input=FileInput())
-    # def predict_craft(self, img):
-    #     file = {}
-    #     # print(f'fs {image_array}')
-    #     image = Image.open(img).convert('RGB')
-    #     image = np.array(image)
-    #     # preprocessing
-    #     height = image.shape[0] // 12
-    #     border = 7
-    #     images = []  # 줄 단위 이미지
-    #     for i in range(0, 10, 3):
-    #         usr = image[height * (i + 2) + border:height * (i + 3) - border, :].copy()
-    #         images.append(usr)
-    #
-    #     # 음절 분리
-    #     syllable_boxes = {}
-    #     character_boxes = {}
-    #     num = 1
-    #     for k, img in enumerate(images):
-    #         img_ = img.copy()  # bbox 확인용
-    #         image = utils.imgproc(img)  # resize image and nomalization
-    #         x = torch.from_numpy(image).permute(2, 0, 1)  # [h, w, c] to [c, h, w]
-    #         x = Variable(x.unsqueeze(0))
-    #         pred, feature = self.artifacts.craft_model(x)
-    #         print(f'text detection done')
-    #         score_text = pred[0, :, :, 0].cpu().data.numpy()
-    #         det = utils.getDetBoxes(score_text)
-    #
-    #         cropped_img = []
-    #         bbox = []
-    #         color = [(0, 255, 0), (0, 0, 255)]  # bbox 확인용
-    #         for i in range(len(det) - 1):
-    #             x, y, w, h, cy = det[i]
-    #             x_next = det[i + 1][0]
-    #             if (x + w) > x_next: w -= (x + w - x_next) // 2
-    #             det[i][2] = w
-    #             size = max(w, height - 2 * border)
-    #             crop, b = utils.crop_img(img, size, width=w, height=height - 2 * border, x=x)
-    #             bbox.append(b)
-    #             cropped_img.append(crop)
-    #         x, y, w, h, cy = det[-1]
-    #         size = max(w, height - 2 * border)
-    #         crop, b = utils.crop_img(img, size, width=w, height=height - 2 * border, x=x)
-    #         cropped_img.append(crop)
-    #         bbox.append(b)
-    #
-    #         # draw rectangle
-    #         for i, box in enumerate(bbox):
-    #             x, y, w, h, cy = box
-    #             cv2.rectangle(img_, (x, y), (x + w, y + h), color[i % 2], 2)  # bbox 확인용
-    #
-    #         syllables_img = np.array(cropped_img)
-    #
-    #         syllable_boxes[k] = bbox
-    #
-    #
-    #     file['syllable'] = syllable_boxes
-    #
-    #
-    #     return file
-    #
-    # @bentoml.api(input=FileInput())
-    # def predict_seg(self, img):
-    #     file ={}
-    #     file['type'] = 'test'
-    #
-    #     image=Image.open(img).convert('RGB')
-    #     image = np.array(image)
-    #     image = np.where(image < 170, 1, 0).astype(np.float32)  # threshold = 200
-    #     x = trans(image)
-    #     X = Variable(x.unsqueeze(0))
-    #     y = self.artifacts.fpn_model(X)
-    #     y = torch.sigmoid(y)
-    #     seg = y[0].data.numpy()
-    #     # print(f'seg{seg.shape}')
-    #     seg_result = utils.masks_to_colorimg(seg)  # 확인용
-    #
-    #     return file
-
 
 class CraftMain():
     def __init__(self):
-        self.model = CRAFT() # initialize
+        self.model = CRAFT(pretrained=True) # initialize
 
-    def load_model(self, checkpoint, cuda=False):
-        if cuda:
-            self.model.load_state_dict(self.copyStateDict(torch.load(checkpoint)))
+    def load_model(self, checkpoint, device='cpu'):
+        print('craft load_model')
+        self.model = self.model.to(device)
+        if device == torch.device('cpu') :
+            print('craft cpu')
+            self.model.load_state_dict(self.copyStateDict(torch.load(checkpoint, map_location=torch.device('cpu') )))
         else:
-            self.model.load_state_dict(self.copyStateDict(torch.load(checkpoint, map_location='cpu')))
+            print('craft cuda')
+            self.model.load_state_dict(self.copyStateDict(torch.load(checkpoint)))
 
         return self.model
 
@@ -247,6 +171,20 @@ class CraftMain():
             new_state_dict[name] = v
         return new_state_dict
 
+class SegmentationMain():
+    def __init__(self):
+        self.model = smp.FPN(encoder_name="resnext50_32x4d", classes=3)
+
+    def load_model(self, checkpoint, device='cpu'):
+        self.model = self.model.to(device)
+        if device==torch.device('cpu') :
+            state = torch.load(checkpoint, map_location=torch.device('cpu'))
+        else:
+            state = torch.load(checkpoint)
+
+        self.model.load_state_dict(state['model_state_dict'])
+
+        return self.model
 
 
 # class FPNMain():
@@ -271,15 +209,3 @@ class CraftMain():
 #
 #         return self.model
 
-class SegmentationMain():
-    def __init__(self):
-        self.model = smp.FPN(encoder_name="resnext50_32x4d", classes=3)
-
-    def load_model(self, checkpoint, cuda=False):
-        if cuda:
-            state = torch.load(checkpoint)
-        else:
-            state = torch.load(checkpoint, map_location=torch.device('cpu'))
-        self.model.load_state_dict(state['model_state_dict'])
-
-        return self.model
