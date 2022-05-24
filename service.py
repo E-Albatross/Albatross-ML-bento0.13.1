@@ -42,7 +42,7 @@ class HangeulDetector(bentoml.BentoService):
         image=Image.open(img).convert('RGB')
         w, h = image.size
         image = np.array(image)
-        print(f'image w h: {w} {h} numpy: {image.shape[0]} {image.shape[1]}')
+        # print(f'image w h: {w} {h} numpy: {image.shape[0]} {image.shape[1]}')
         # preprocessing
         height = (image.shape[0] - 13) // 12
         # border = 7
@@ -75,7 +75,7 @@ class HangeulDetector(bentoml.BentoService):
                 syllable_boxes[k] = []
                 character_boxes[k] = []
                 continue
-            print(f'음절 개수: {len(det)}')
+            # print(f'음절 개수: {len(det)}')
             # print(f'det 개수: {len(det)}')
             for i in range(len(det) - 1):
                 # print(f'det {i}')
@@ -149,13 +149,13 @@ class CraftMain():
         self.model = CRAFT(pretrained=True) # initialize
 
     def load_model(self, checkpoint, device='cpu'):
-        print('craft load_model')
+        # print('craft load_model')
         self.model = self.model.to(device)
         if device == torch.device('cpu') :
-            print('craft cpu')
+            # print('craft cpu')
             self.model.load_state_dict(self.copyStateDict(torch.load(checkpoint, map_location=torch.device('cpu') )))
         else:
-            print('craft cuda')
+            # print('craft cuda')
             self.model.load_state_dict(self.copyStateDict(torch.load(checkpoint)))
 
         return self.model
