@@ -40,7 +40,7 @@ def getContourBoxes(image, X):
     x_arr = []
     y_arr = []
     if not contours:
-        print('no ctr')
+        # print('no ctr')
         return []
     for ctr in contours:
         x, y, w, h = cv2.boundingRect(ctr)
@@ -65,9 +65,11 @@ def crop_img(image, size, width, height, x,y=0):
         return img, box
     x_, y_, w_, h_, c_ = box
     if w_>224: w_=224
-
     crop = np.ones((size, size, 3), dtype=np.uint8) * 255
-    crop[0:h_, 0:w_] = image[y_:y_+h_, x_:x_+w_].copy()
+    # crop = np.ones((224, 224, 3), dtype=np.uint8) * 255
+    x_offset = (size //2) - (w_ // 2)
+    y_offset = (size //2) - (h_ // 2)
+    crop[y_offset:y_offset + h_, x_offset:x_offset+w_] = image[y_:y_+h_, x_:x_+w_].copy()
     crop = cv2.resize(crop, (224, 224))
     # cv2.imshow('img', crop)
     # cv2.waitKey(0)
@@ -107,7 +109,7 @@ def crop_img(image, size, width, height, x,y=0):
 #
 #     return new_bbox
 
-def getDetBoxes(textmap, text_threshold=0.7, low_text=0.4):
+def getDetBoxes(textmap, text_threshold=0.5, low_text=0.4):
     # prepare data
     textmap = textmap.copy()
 
@@ -117,14 +119,14 @@ def getDetBoxes(textmap, text_threshold=0.7, low_text=0.4):
     ret, text_score = cv2.threshold(textmap, low_text, 1, 0)
     nLabels, labels, stats, centroids = cv2.connectedComponentsWithStats(text_score.astype(np.uint8), connectivity=4)
     det = []
-
+    # print(f'nLabels{nLabels}')
     for k in range(1,nLabels):
         # size filtering
         size = stats[k, cv2.CC_STAT_AREA]
         if size < 10: continue
 
         # thresholding
-        if np.max(textmap[labels==k]) < text_threshold: continue
+        # if np.max(textmap[labels==k]) < text_threshold: continue
 
         # make segmentation map
         segmap = np.zeros(textmap.shape, dtype=np.uint8)
@@ -173,7 +175,7 @@ def check_ja(char_list, char):
     m_x, m_y, m_w, m_h = mo['box']
 
     if -1 in ba['label']:
-        if x > m_x + m_w//2 or y + h//2 > (m_y + m_h): #or (char['label'] not in ja['label'] and char['label'] in mo['label']):
+        if (x > m_x + m_w//2 or y + h//2 > (m_y + m_h)) and char['label'] in mo['label']: #or (char['label'] not in ja['label'] and char['label'] in mo['label']):
             return MO
         elif x > j_x + j_w:
             return MO

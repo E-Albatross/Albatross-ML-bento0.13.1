@@ -29,6 +29,8 @@ trans = transforms.Compose([
 root_dir = ('./out')
 out_dir = os.path.join(root_dir,'test')
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 @bentoml.env(requirements_txt_file="./requirements.txt")
 @bentoml.artifacts([PytorchModelArtifact('craft_model'), PytorchModelArtifact('fpn_model')])
 class HangeulDetector(bentoml.BentoService):
@@ -38,25 +40,28 @@ class HangeulDetector(bentoml.BentoService):
         file = {}
         # print(f'fs {image_array}')
         image=Image.open(img).convert('RGB')
+        w, h = image.size
         image = np.array(image)
+        print(f'image w h: {w} {h} numpy: {image.shape[0]} {image.shape[1]}')
         # preprocessing
-        height = image.shape[0] // 12
-        border = 7
+        height = (image.shape[0] - 13) // 12
+        # border = 7
         images = []  # 줄 단위 이미지
         for i in range(0, 10, 3):
-            usr = image[height * (i + 2) + border:height * (i + 3) - border, :].copy()
+            usr = image[height * (i+2) + (i+1)*2:height * (i + 3) + (i)*2, :].copy()
             images.append(usr)
 
         # 음절 분리
         syllable_boxes = {}
         character_boxes = {}
         num = 1
-        print('start')
+        # print('start')
         for k, img in enumerate(images):
             img_ = img.copy()  # bbox 확인용
             image = utils.imgproc(img)  # resize image and nomalization
             x = torch.from_numpy(image).permute(2, 0, 1)  # [h, w, c] to [c, h, w]
             x = Variable(x.unsqueeze(0))
+            x = x.to(device)
             pred, feature = self.artifacts.craft_model(x)
             # print(f'text detection done')
             score_text = pred[0, :, :, 0].cpu().data.numpy()
@@ -70,7 +75,7 @@ class HangeulDetector(bentoml.BentoService):
                 syllable_boxes[k] = []
                 character_boxes[k] = []
                 continue
-
+            print(f'음절 개수: {len(det)}')
             # print(f'det 개수: {len(det)}')
             for i in range(len(det) - 1):
                 # print(f'det {i}')
@@ -78,16 +83,16 @@ class HangeulDetector(bentoml.BentoService):
                 x_next = det[i + 1][0]
                 if (x + w) > x_next: w -= (x + w - x_next) // 2
                 det[i][2] = w
-                size = max(w, height - 2 * border)
-                crop, b = utils.crop_img(img, size, width=w, height=height - 2 * border, x=x)
+                size = max(w, height)
+                crop, b = utils.crop_img(img, size, width=w, height=height, x=x)
                 if not b:
                     continue
                 bbox.append(b)
                 cropped_img.append(crop)
             if len(det) >= 2:
                 x, y, w, h, cy = det[-1]
-                size = max(w, height - 2 * border)
-                crop, b = utils.crop_img(img, size, width=w, height=height - 2 * border, x=x)
+                size = max(w, height)
+                crop, b = utils.crop_img(img, size, width=w, height=height, x=x)
                 if b:
                     cropped_img.append(crop)
                     bbox.append(b)
@@ -101,7 +106,7 @@ class HangeulDetector(bentoml.BentoService):
 
             syllable_boxes[k] = bbox
 
-            # cv2.imwrite(os.path.join(out_dir, f'test_{k}.png'), img_)
+            cv2.imwrite(os.path.join('./bbox', f'img_{k}.png'), img_)
 
             # 음소 분리
             syllables = np.where(syllables_img < 170, 1, 0).astype(np.float32)  # threshold = 200
@@ -109,10 +114,11 @@ class HangeulDetector(bentoml.BentoService):
             for idx, syllable in enumerate(syllables):
                 img_ = cropped_img[idx].copy()
                 x = trans(syllable)
-                X = Variable(x.unsqueeze(0))
+                x = Variable(x.unsqueeze(0))
+                X = x.to(device)
                 y = self.artifacts.fpn_model(X)
                 y = torch.sigmoid(y)
-                seg = y[0].data.numpy()
+                seg = y[0].cpu().data.numpy()
 
                 # print(f'seg{seg.shape}')
                 seg_result = utils.masks_to_colorimg(seg)  # 확인용
@@ -124,6 +130,8 @@ class HangeulDetector(bentoml.BentoService):
                 for i, box in enumerate(bbox):
                     x, y, w, h = box
                     cv2.rectangle(seg_result, (x, y), (x + w, y + h), colors[i], 4)  # bbox 확인용
+                    cv2.rectangle(img_, (x, y), (x + w, y + h), colors[i], 4)  # bbox 확인용
+
                 # cv2.imwrite(os.path.join('./bbox',f'seg{str(num)}.png'),seg_result)
                 # cv2.imwrite(os.path.join('./bbox',f'crop{str(num)}.png'),img_)
 
